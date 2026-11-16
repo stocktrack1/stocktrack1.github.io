@@ -939,39 +939,6 @@
 </div>
 
 <!-- MEVCUT ARAYÜZ İŞLEMLERİ -->
-<script>
-  const searchInput = document.getElementById('searchInput');
-  const productRows = [...document.querySelectorAll('#productRows tr')];
-  const noResults = document.getElementById('noResults');
-
-  searchInput.addEventListener('input', () => {
-    const query = searchInput.value.trim().toLocaleLowerCase('tr');
-    let visibleCount = 0;
-
-    productRows.forEach(row => {
-      const matches = row.dataset.search.toLocaleLowerCase('tr').includes(query);
-      row.hidden = !matches;
-
-      if (matches) visibleCount++;
-    });
-
-    noResults.hidden = visibleCount !== 0;
-  });
-
-  document.getElementById('addProductBtn').addEventListener('click', () => {
-    alert('Yeni ürün ekleme formunu bir sonraki aşamada hazırlayacağız.');
-  });
-
-  document.querySelectorAll('.nav a').forEach(link => {
-    link.addEventListener('click', () => {
-      document.querySelectorAll('.nav a').forEach(item => {
-        item.classList.remove('active');
-      });
-
-      link.classList.add('active');
-    });
-  });
-</script>
 
 <!-- SUPABASE KÜTÜPHANESİ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -979,10 +946,9 @@
 <!-- SUPABASE BAĞLANTI DOSYASI -->
 <script src="assets/js/assets/js/supabase.js"></script>
 
-<!-- GİRİŞ VE OTURUM YÖNETİMİ -->
+<!-- STOCKTRACK VERİTABANI İŞLEMLERİ -->
 <script>
 (() => {
-
   const client = window.stocktrackSupabase;
 
   const loginScreen = document.getElementById("loginScreen");
@@ -991,106 +957,352 @@
   const loginMessage = document.getElementById("loginMessage");
   const loginSubmit = document.getElementById("loginSubmit");
 
-  function showSession(session) {
+  const productRows = document.getElementById("productRows");
+  const categoryList = document.querySelector(".category-list");
+  const movementPanel = document.getElementById("movements");
+  const searchInput = document.getElementById("searchInput");
 
+  const money = value =>
+    new Intl.NumberFormat("tr-TR", {
+      style: "currency",
+      currency: "TRY"
+    }).format(Number(value || 0));
+
+  const escapeHTML = value =>
+    String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
+
+  function showSession(session) {
     const signedIn = Boolean(session);
 
     loginScreen.style.display = signedIn ? "none" : "grid";
     appShell.style.display = signedIn ? "flex" : "none";
 
     if (session?.user?.email) {
-
-      const initial = session.user.email
-        .trim()
-        .charAt(0)
-        .toLocaleUpperCase("tr");
-
       document.getElementById("userAvatar").textContent =
-        initial || "SB";
+        session.user.email.charAt(0).toUpperCase();
 
       document.getElementById("userAvatar").title =
         session.user.email;
     }
   }
 
-  // GİRİŞ İŞLEMİ
-  loginForm.addEventListener("submit", async (event) => {
+  function setMessage(message) {
+    let element = document.getElementById("dataMessage");
 
+    if (!element) {
+      element = document.createElement("div");
+      element.id = "dataMessage";
+      element.className = "empty";
+      document.querySelector(".main").prepend(element);
+    }
+
+    element.textContent = message;
+  }
+
+  async function loadProducts() {
+    const { data, error } = await client
+      .from("products")
+      .select(`
+        id,
+        product_name,
+        product_code,
+        purchase_price,
+        sale_price,
+        stock_quantity,
+        min_stock,
+        categories(category_name)
+      `)
+      .order("id", { ascending: false });
+
+    if (error) throw error;
+
+    productRows.innerHTML = "";
+
+    let totalStock = 0;
+    let criticalStock = 0;
+    let stockCost = 0;
+
+    data.forEach(product => {
+      const quantity = Number(product.stock_quantity || 0);
+      const purchasePrice = Number(product.purchase_price || 0);
+      const minimum = Number(product.min_stock || 0);
+
+      totalStock += quantity;
+      stockCost += quantity * purchasePrice;
+
+      const isCritical = quantity <= minimum;
+
+      if (isCritical) criticalStock++;
+
+      const category =
+        product.categories?.category_name || "Kategorisiz";
+
+      const row = document.createElement("tr");
+
+      row.dataset.search = [
+        product.product_name,
+        product.product_code,
+        category
+      ].join(" ").toLocaleLowerCase("tr");
+
+      row.innerHTML = `
+        <td>
+          <div class="product-cell">
+            <div class="product-thumb">📦</div>
+            <div>
+              <strong>${escapeHTML(product.product_name)}</strong>
+              <small>${escapeHTML(product.product_code)}</small>
+            </div>
+          </div>
+        </td>
+        <td>${escapeHTML(category)}</td>
+        <td><strong>${quantity} adet</strong></td>
+        <td>${money(purchasePrice)}</td>
+        <td>${money(product.sale_price)}</td>
+        <td>
+          <span class="pill" style="${
+            isCritical
+              ? "background:#fff0f0;color:#df5b62"
+              : ""
+          }">
+            ${isCritical ? "Kritik Stok" : "Stokta"}
+          </span>
+        </td>
+      `;
+
+      productRows.appendChild(row);
+    });
+
+    document.getElementById("totalProducts").textContent = data.length;
+    document.getElementById("totalStock").textContent = totalStock;
+    document.getElementById("criticalStock").textContent = criticalStock;
+    document.getElementById("stockCost").textContent = money(stockCost);
+
+    if (data.length === 0) {
+      productRows.innerHTML = `
+        <tr><td colspan="6" class="empty">Henüz ürün eklenmemiş.</td></tr>
+      `;
+    }
+
+    document.querySelector(".section-title small").textContent =
+      "Supabase veritabanından güncel veriler";
+
+    filterProducts();
+  }
+
+  async function loadCategories() {
+    const { data, error } = await client
+      .from("categories")
+      .select("id, category_name")
+      .order("id");
+
+    if (error) throw error;
+
+    const { data: products, error: productError } = await client
+      .from("products")
+      .select("category_id");
+
+    if (productError) throw productError;
+
+    const counts = {};
+
+    products.forEach(product => {
+      const id = product.category_id;
+      counts[id] = (counts[id] || 0) + 1;
+    });
+
+    const maxCount = Math.max(
+      1,
+      ...data.map(category => counts[category.id] || 0)
+    );
+
+    categoryList.innerHTML = "";
+
+    data.forEach(category => {
+      const count = counts[category.id] || 0;
+      const percentage = (count / maxCount) * 100;
+
+      const item = document.createElement("div");
+      item.className = "category-row";
+
+      item.innerHTML = `
+        <span>${escapeHTML(category.category_name)}</span>
+        <div class="track">
+          <div class="fill" style="width:${percentage}%"></div>
+        </div>
+        <b>${count}</b>
+      `;
+
+      categoryList.appendChild(item);
+    });
+  }
+
+  async function loadMovements() {
+    const { data, error } = await client
+      .from("stock_movements")
+      .select(`
+        id,
+        movement_type,
+        quantity,
+        description,
+        created_at,
+        products(product_name)
+      `)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (error) throw error;
+
+    movementPanel.querySelectorAll(".movement").forEach(item => {
+      item.remove();
+    });
+
+    if (data.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Henüz stok hareketi bulunmuyor.";
+      movementPanel.appendChild(empty);
+      return;
+    }
+
+    data.forEach(movement => {
+      const isEntry = movement.movement_type === "GIRIS";
+
+      const item = document.createElement("div");
+      item.className = "movement";
+
+      const date = new Date(movement.created_at)
+        .toLocaleString("tr-TR");
+
+      item.innerHTML = `
+        <div>
+          <strong>${escapeHTML(
+            movement.products?.product_name || "Bilinmeyen ürün"
+          )}</strong>
+          <small>
+            ${escapeHTML(movement.description || "Açıklama yok")}
+            · ${date}
+          </small>
+        </div>
+        <b style="color:${isEntry ? "#16a36a" : "#df5b62"}">
+          ${isEntry ? "+" : "-"}${Number(movement.quantity)} adet
+        </b>
+      `;
+
+      movementPanel.appendChild(item);
+    });
+  }
+
+  async function loadDashboard() {
+    setMessage("Veritabanı verileri yükleniyor...");
+
+    try {
+      await Promise.all([
+        loadProducts(),
+        loadCategories(),
+        loadMovements()
+      ]);
+
+      const message = document.getElementById("dataMessage");
+      if (message) message.remove();
+
+    } catch (error) {
+      console.error("Veri yükleme hatası:", error);
+      setMessage("Veriler yüklenemedi: " + error.message);
+    }
+  }
+
+  function filterProducts() {
+    const query = searchInput.value.trim().toLocaleLowerCase("tr");
+    const rows = productRows.querySelectorAll("tr");
+    let visible = 0;
+
+    rows.forEach(row => {
+      const matches = (row.dataset.search || "")
+        .includes(query);
+
+      row.hidden = !matches;
+
+      if (matches) visible++;
+    });
+
+    document.getElementById("noResults").hidden =
+      visible !== 0 || rows.length === 0;
+  }
+
+  searchInput.addEventListener("input", filterProducts);
+
+  loginForm.addEventListener("submit", async event => {
     event.preventDefault();
 
     loginMessage.textContent = "";
     loginSubmit.disabled = true;
     loginSubmit.textContent = "Giriş yapılıyor...";
 
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
-
     try {
-
       const { data, error } = await client.auth.signInWithPassword({
-        email,
-        password
+        email: document.getElementById("loginEmail").value.trim(),
+        password: document.getElementById("loginPassword").value
       });
 
       if (error) {
-        loginMessage.textContent = "Giriş yapılamadı: " + error.message;
+        loginMessage.textContent = error.message;
         return;
       }
 
       loginForm.reset();
       showSession(data.session);
+      await loadDashboard();
 
     } catch (error) {
-
-      loginMessage.textContent = "Bir hata oluştu: " + error.message;
-
+      loginMessage.textContent = error.message;
     } finally {
-
       loginSubmit.disabled = false;
       loginSubmit.textContent = "Giriş Yap";
-
     }
-
   });
 
-  // ÇIKIŞ İŞLEMİ
   document.getElementById("logoutBtn").addEventListener("click", async () => {
-
     const { error } = await client.auth.signOut();
 
     if (error) {
       alert("Çıkış yapılamadı: " + error.message);
-      return;
+    } else {
+      showSession(null);
     }
-
-    showSession(null);
-
   });
 
-  // OTURUM DEĞİŞİKLİKLERİ
-  client.auth.onAuthStateChange((_event, session) => {
+  client.auth.onAuthStateChange((event, session) => {
     showSession(session);
+
+    if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      loadDashboard();
+    }
   });
 
-  // SAYFA AÇILDIĞINDA OTURUM KONTROLÜ
   client.auth.getSession().then(({ data, error }) => {
-
     if (error) {
-
-      loginMessage.textContent =
-        "Oturum kontrol edilemedi: " + error.message;
-
+      loginMessage.textContent = error.message;
       showSession(null);
       return;
-
     }
 
     showSession(data.session);
 
+    if (data.session) {
+      loadDashboard();
+    }
   });
 
 })();
 </script>
+
 
 </body>
 </html>
