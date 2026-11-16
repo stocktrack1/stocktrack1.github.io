@@ -1284,7 +1284,7 @@
     filterProducts();
   }
 
-  async function loadCategories() {
+  
     async function loadCategories() {
   const { data, error } = await client
     .from("categories")
@@ -1345,7 +1345,7 @@
     categoryList.appendChild(item);
   });
 }
-  }
+  
 
   async function loadMovements() {
     const { data, error } = await client
