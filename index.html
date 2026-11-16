@@ -1421,7 +1421,134 @@
       setMessage("Veriler yüklenemedi: " + error.message);
     }
   }
+// YENİ ÜRÜN EKLEME İŞLEMLERİ
 
+const productModal = document.getElementById("productModal");
+const productForm = document.getElementById("productForm");
+const productFormMessage =
+  document.getElementById("productFormMessage");
+
+function closeProductModal() {
+  productModal.classList.remove("show");
+  productForm.reset();
+  productFormMessage.textContent = "";
+}
+
+document.getElementById("addProductBtn").addEventListener("click", () => {
+  productModal.classList.add("show");
+  productFormMessage.textContent = "";
+});
+
+document.getElementById("closeProductModal")
+  .addEventListener("click", closeProductModal);
+
+document.getElementById("cancelProduct")
+  .addEventListener("click", closeProductModal);
+
+productModal.addEventListener("click", event => {
+  if (event.target === productModal) {
+    closeProductModal();
+  }
+});
+
+productForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const saveButton = document.getElementById("saveProduct");
+  saveButton.disabled = true;
+  saveButton.textContent = "Kaydediliyor...";
+  productFormMessage.textContent = "";
+
+  const name = document.getElementById("newProductName").value.trim();
+  const code = document.getElementById("newProductCode").value.trim();
+  const categoryId = Number(
+    document.getElementById("newProductCategory").value
+  );
+
+  const purchasePrice = Number(
+    document.getElementById("newPurchasePrice").value
+  );
+
+  const salePrice = Number(
+    document.getElementById("newSalePrice").value
+  );
+
+  const initialStock = Number(
+    document.getElementById("newStockQuantity").value
+  );
+
+  const minStock = Number(
+    document.getElementById("newMinStock").value
+  );
+
+  try {
+    if (
+      !name || !code || !categoryId ||
+      !Number.isFinite(purchasePrice) ||
+      !Number.isFinite(salePrice) ||
+      !Number.isInteger(initialStock) ||
+      !Number.isInteger(minStock) ||
+      purchasePrice < 0 || salePrice < 0 ||
+      initialStock < 0 || minStock < 0
+    ) {
+      throw new Error("Lütfen tüm alanları doğru şekilde doldurun.");
+    }
+
+    // Önce ürünü sıfır stokla kaydet
+    const { data: product, error: insertError } = await client
+      .from("products")
+      .insert({
+        product_name: name,
+        product_code: code,
+        category_id: categoryId,
+        purchase_price: purchasePrice,
+        sale_price: salePrice,
+        stock_quantity: 0,
+        min_stock: minStock
+      })
+      .select("id")
+      .single();
+
+    if (insertError) throw insertError;
+
+    // Başlangıç stoğunu stok hareketi olarak kaydet
+    if (initialStock > 0) {
+      const { error: movementError } = await client.rpc(
+        "update_stock",
+        {
+          p_product_id: product.id,
+          p_movement_type: "GIRIS",
+          p_quantity: initialStock,
+          p_description: "İlk stok girişi"
+        }
+      );
+
+      if (movementError) {
+        // Stok hareketi başarısızsa boş ürünü geri al
+        await client
+          .from("products")
+          .delete()
+          .eq("id", product.id);
+
+        throw movementError;
+      }
+    }
+
+    closeProductModal();
+    await loadDashboard();
+
+    alert("Ürün başarıyla kaydedildi.");
+
+  } catch (error) {
+    console.error("Ürün ekleme hatası:", error);
+    productFormMessage.textContent =
+      "Ürün kaydedilemedi: " + error.message;
+
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = "Ürünü Kaydet";
+  }
+});
   function filterProducts() {
     const query = searchInput.value.trim().toLocaleLowerCase("tr");
     const rows = productRows.querySelectorAll("tr");
