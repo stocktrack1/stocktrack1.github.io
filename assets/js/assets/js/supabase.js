@@ -14,3 +14,14 @@ const supabase = window.supabase.createClient(
         }
     }
 );
+
+console.log("StockTrack Supabase bağlantısı hazır.");
+
+supabase.auth.getSession().then(({ data, error }) => {
+    if (error) {
+        console.error("Supabase bağlantı hatası:", error.message);
+    } else {
+        console.log("Supabase bağlantısı başarılı!");
+        console.log("Oturum:", data.session ? "Açık" : "Kapalı");
+    }
+});
