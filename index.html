@@ -1,13 +1,212 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StockTrack - Stok Takip Sistemi</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101827">
+  <title>StockTrack | Stok Takip Sistemi</title>
+  <style>
+    :root {
+      --bg: #f4f6fa; --surface: #fff; --ink: #182230; --muted: #7b8798;
+      --line: #e8edf3; --nav: #111b2d; --nav-muted: #9aa8bd;
+      --blue: #4776e6; --blue-soft: #edf2ff; --green: #16a36a;
+      --green-soft: #e9f8f1; --orange: #e69a31; --orange-soft: #fff5e6;
+      --red: #df5b62; --red-soft: #fff0f0; --shadow: 0 8px 28px rgba(25,42,70,.05);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    button, input { font: inherit; }
+    .app { min-height: 100vh; display: flex; }
+    .sidebar { width: 250px; background: var(--nav); color: white; padding: 27px 17px; display: flex; flex-direction: column; flex-shrink: 0; }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 0 12px 34px; font-size: 20px; font-weight: 750; letter-spacing: -.5px; }
+    .brand-mark { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: linear-gradient(135deg,#6d91ff,#4265d8); font-size: 19px; font-weight: 800; }
+    .nav-label { color: #718099; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; padding: 0 13px 12px; }
+    .nav { display: grid; gap: 7px; }
+    .nav a { color: var(--nav-muted); text-decoration: none; display: flex; align-items: center; gap: 13px; padding: 12px 13px; border-radius: 9px; font-size: 13px; transition: .2s; }
+    .nav a:hover, .nav a.active { background: #202e46; color: white; }
+    .nav a.active { box-shadow: inset 3px 0 #6e91ff; }
+    .nav-icon { width: 19px; text-align: center; font-size: 16px; }
+    .sidebar-bottom { margin-top: auto; border-top: 1px solid #28354a; padding: 20px 12px 0; color: #8795aa; font-size: 11px; line-height: 1.7; }
+    .main { min-width: 0; flex: 1; padding: 28px 34px 40px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 30px; }
+    .heading h1 { margin: 0 0 6px; font-size: 25px; letter-spacing: -.7px; }
+    .heading p { margin: 0; color: var(--muted); font-size: 13px; }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .search { position: relative; }
+    .search span { position: absolute; left: 13px; top: 10px; color: #98a3b3; }
+    .search input { width: 230px; border: 1px solid var(--line); background: white; border-radius: 9px; padding: 10px 12px 10px 37px; outline: none; font-size: 12px; }
+    .search input:focus { border-color: #9ab0f4; box-shadow: 0 0 0 3px #edf2ff; }
+    .icon-button { width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 9px; background: white; color: #687589; cursor: pointer; }
+    .avatar { width: 37px; height: 37px; display: grid; place-items: center; border-radius: 50%; background: #e5ecff; color: #4265d8; font-weight: 750; font-size: 12px; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin: 0 0 15px; }
+    .section-title h2 { margin: 0; font-size: 15px; letter-spacing: -.2px; }
+    .section-title small { color: var(--muted); font-size: 11px; }
+    .stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin-bottom: 25px; }
+    .stat, .panel { background: var(--surface); border: 1px solid #edf0f5; border-radius: 13px; box-shadow: var(--shadow); }
+    .stat { padding: 18px 19px; }
+    .stat-top { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 11px; font-weight: 600; }
+    .stat-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; font-size: 16px; }
+    .stat-value { font-size: 25px; font-weight: 750; letter-spacing: -.8px; margin: 13px 0 5px; }
+    .stat-note { color: var(--muted); font-size: 10px; }
+    .stat-note strong { color: var(--green); font-weight: 700; }
+    .blue { background: var(--blue-soft); color: var(--blue); } .green { background: var(--green-soft); color: var(--green); }
+    .orange { background: var(--orange-soft); color: var(--orange); } .red { background: var(--red-soft); color: var(--red); }
+    .content-grid { display: grid; grid-template-columns: minmax(0,1.55fr) minmax(270px,1fr); gap: 17px; margin-bottom: 24px; }
+    .panel { padding: 19px 20px; min-width: 0; }
+    .chart-head { display: flex; align-items: center; justify-content: space-between; }
+    .chart-head h2 { font-size: 14px; margin: 0; }
+    .chart-head span { color: var(--muted); font-size: 10px; }
+    .chart { height: 180px; display: flex; align-items: end; justify-content: space-around; gap: 13px; padding: 23px 7px 0; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to bottom, transparent 0, transparent 43px, #f0f3f7 44px); }
+    .bar-group { height: 100%; display: flex; align-items: end; gap: 5px; position: relative; flex: 1; justify-content: center; }
+    .bar { width: 13px; border-radius: 5px 5px 0 0; background: #dce5ff; min-height: 8px; }
+    .bar.primary { background: var(--blue); }
+    .chart-labels { display: flex; justify-content: space-around; padding-top: 9px; color: var(--muted); font-size: 10px; }
+    .category-list { display: grid; gap: 17px; margin-top: 20px; }
+    .category-row { display: grid; grid-template-columns: 105px 1fr 25px; align-items: center; gap: 10px; font-size: 11px; }
+    .category-row span:first-child { color: #5f6b7b; }
+    .track { height: 7px; background: #f0f2f6; border-radius: 10px; overflow: hidden; }
+    .fill { height: 100%; border-radius: inherit; background: var(--blue); }
+    .category-row b { text-align: right; font-size: 10px; color: #657185; }
+    .table-panel { padding: 0; overflow: hidden; }
+    .table-header { padding: 19px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .table-header h2 { margin: 0; font-size: 14px; }
+    .primary-btn { border: 0; background: var(--blue); color: white; padding: 10px 14px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px #4776e633; }
+    .primary-btn:hover { background: #3865d2; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 650px; }
+    th { text-align: left; padding: 12px 20px; background: #fafbfd; color: #8994a4; font-size: 9px; letter-spacing: .7px; font-weight: 750; }
+    td { padding: 15px 20px; border-top: 1px solid #f0f2f6; font-size: 11px; color: #586577; }
+    td strong { color: #253144; font-size: 11px; }
+    .product-cell { display: flex; align-items: center; gap: 10px; }
+    .product-thumb { width: 34px; height: 34px; border-radius: 8px; background: #f0f3fa; display: grid; place-items: center; font-size: 17px; }
+    .product-cell small { display: block; color: #98a2b1; margin-top: 3px; font-size: 9px; }
+    .pill { display: inline-block; padding: 5px 8px; border-radius: 20px; font-size: 9px; font-weight: 700; background: var(--green-soft); color: var(--green); }
+    .movement { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid #f0f2f6; font-size: 11px; }
+    .movement:first-of-type { margin-top: 14px; }
+    .movement small { display: block; color: var(--muted); margin-top: 4px; font-size: 9px; }
+    .movement b { color: var(--green); }
+    .empty { padding: 25px; text-align: center; color: var(--muted); font-size: 12px; }
+    @media (max-width: 1050px) { .stats { grid-template-columns: repeat(2,minmax(0,1fr)); } .main { padding: 24px; } }
+    @media (max-width: 760px) {
+      .sidebar { width: 65px; padding: 20px 9px; } .brand { padding: 0 5px 28px; } .brand-name,.nav-label,.nav-text,.sidebar-bottom { display: none; }
+      .nav a { justify-content: center; padding: 12px 0; } .nav-icon { font-size: 18px; }
+      .main { padding: 20px 15px; } .topbar { align-items: flex-start; } .top-actions { gap: 7px; } .search input { width: 155px; }
+      .content-grid { grid-template-columns: 1fr; } .heading h1 { font-size: 21px; }
+    }
+    @media (max-width: 480px) {
+      .stats { gap: 9px; } .stat { padding: 13px; } .stat-value { font-size: 21px; }
+      .topbar { flex-direction: column; } .top-actions { width: 100%; } .search { flex: 1; } .search input { width: 100%; }
+      .icon-button,.avatar { flex-shrink: 0; }
+    }
+  </style>
 </head>
 <body>
-    <h1>StockTrack</h1>
-    <p>Stok takip sistemine hoş geldiniz.</p>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">S</div><span class="brand-name">StockTrack</span></div>
+    <div class="nav-label">MENÜ</div>
+    <nav class="nav">
+      <a class="active" href="#overview"><span class="nav-icon">▦</span><span class="nav-text">Genel Bakış</span></a>
+      <a href="#products"><span class="nav-icon">▣</span><span class="nav-text">Ürünler</span></a>
+      <a href="#categories"><span class="nav-icon">▤</span><span class="nav-text">Kategoriler</span></a>
+      <a href="#movements"><span class="nav-icon">↔</span><span class="nav-text">Stok Hareketleri</span></a>
+    </nav>
+    <div class="sidebar-bottom">STOCKTRACK<br>Stok yönetimini kolaylaştırır.<br><br>© 2026 StockTrack</div>
+  </aside>
+
+  <main class="main" id="overview">
+    <header class="topbar">
+      <div class="heading"><h1>Genel Bakış</h1><p>Stok durumunuzu ve işletmenizin özetini takip edin.</p></div>
+      <div class="top-actions">
+        <label class="search"><span>⌕</span><input id="searchInput" type="search" placeholder="Ürün ara..."></label>
+        <button class="icon-button" aria-label="Bildirimler" title="Bildirimler">♧</button>
+        <div class="avatar" title="Kullanıcı">SB</div>
+      </div>
+    </header>
+
+    <div class="section-title"><h2>İşletme Özeti</h2><small>Örnek gösterim verileri</small></div>
+    <section class="stats">
+      <article class="stat"><div class="stat-top">Toplam Ürün <span class="stat-icon blue">▣</span></div><div class="stat-value" id="totalProducts">1</div><div class="stat-note">Kayıtlı ürün çeşidi</div></article>
+      <article class="stat"><div class="stat-top">Toplam Stok <span class="stat-icon green">▤</span></div><div class="stat-value" id="totalStock">35</div><div class="stat-note">Depodaki toplam adet</div></article>
+      <article class="stat"><div class="stat-top">Kritik Stok <span class="stat-icon orange">⚑</span></div><div class="stat-value" id="criticalStock">0</div><div class="stat-note">Minimum seviyenin altındaki ürün</div></article>
+      <article class="stat"><div class="stat-top">Stok Maliyeti <span class="stat-icon red">₺</span></div><div class="stat-value" id="stockCost">₺12.250</div><div class="stat-note">Alış fiyatı üzerinden hesaplanır</div></article>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel">
+        <div class="chart-head"><h2>Stok Hareketleri</h2><span>Son 6 ay · örnek grafik</span></div>
+        <div class="chart" aria-label="Örnek stok hareketleri grafiği">
+          <div class="bar-group"><div class="bar" style="height:35%"></div><div class="bar primary" style="height:55%"></div></div>
+          <div class="bar-group"><div class="bar" style="height:48%"></div><div class="bar primary" style="height:70%"></div></div>
+          <div class="bar-group"><div class="bar" style="height:30%"></div><div class="bar primary" style="height:62%"></div></div>
+          <div class="bar-group"><div class="bar" style="height:60%"></div><div class="bar primary" style="height:82%"></div></div>
+          <div class="bar-group"><div class="bar" style="height:42%"></div><div class="bar primary" style="height:68%"></div></div>
+          <div class="bar-group"><div class="bar" style="height:52%"></div><div class="bar primary" style="height:90%"></div></div>
+        </div>
+        <div class="chart-labels"><span>Haz</span><span>Tem</span><span>Ağu</span><span>Eyl</span><span>Eki</span><span>Kas</span></div>
+      </article>
+      <article class="panel" id="categories">
+        <div class="chart-head"><h2>Kategorilere Göre Ürünler</h2><span>Dağılım</span></div>
+        <div class="category-list">
+          <div class="category-row"><span>Elektronik</span><div class="track"><div class="fill" style="width:100%"></div></div><b>1</b></div>
+          <div class="category-row"><span>Bilgisayar</span><div class="track"><div class="fill" style="width:0%"></div></div><b>0</b></div>
+          <div class="category-row"><span>Ofis Malz.</span><div class="track"><div class="fill" style="width:0%"></div></div><b>0</b></div>
+          <div class="category-row"><span>Giyim</span><div class="track"><div class="fill" style="width:0%"></div></div><b>0</b></div>
+          <div class="category-row"><span>Diğer</span><div class="track"><div class="fill" style="width:0%"></div></div><b>0</b></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel table-panel" id="products">
+      <div class="table-header"><h2>Ürün Listesi</h2><button class="primary-btn" id="addProductBtn">＋ Yeni Ürün Ekle</button></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ÜRÜN</th><th>KATEGORİ</th><th>STOK</th><th>ALIŞ FİYATI</th><th>SATIŞ FİYATI</th><th>DURUM</th></tr></thead>
+          <tbody id="productRows">
+            <tr data-search="logitech mouse elk001 elektronik">
+              <td><div class="product-cell"><div class="product-thumb">🖱️</div><div><strong>Logitech Mouse</strong><small>ELK001</small></div></div></td>
+              <td>Elektronik</td><td><strong>35 adet</strong></td><td>₺350,00</td><td>₺500,00</td><td><span class="pill">Stokta</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="empty" id="noResults" hidden>Aramanızla eşleşen ürün bulunamadı.</div>
+    </section>
+
+    <section class="panel" id="movements" style="margin-top:18px">
+      <div class="chart-head"><h2>Son Stok Hareketleri</h2><span>En son işlemler</span></div>
+      <div class="movement"><div><strong>Logitech Mouse</strong><small>İlk stok girişi · Başlangıç stoğu</small></div><b>+25 adet</b></div>
+      <div class="movement"><div><strong>Logitech Mouse</strong><small>Stok girişi · İlk stok girişi</small></div><b>+10 adet</b></div>
+    </section>
+  </main>
+</div>
+<script>
+  // Bu sürüm arayüz önizlemesidir. Henüz Supabase veritabanına bağlı değildir.
+  const searchInput = document.getElementById('searchInput');
+  const productRows = [...document.querySelectorAll('#productRows tr')];
+  const noResults = document.getElementById('noResults');
+
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.trim().toLocaleLowerCase('tr');
+    let visibleCount = 0;
+    productRows.forEach(row => {
+      const matches = row.dataset.search.toLocaleLowerCase('tr').includes(query);
+      row.hidden = !matches;
+      if (matches) visibleCount++;
+    });
+    noResults.hidden = visibleCount !== 0;
+  });
+
+  document.getElementById('addProductBtn').addEventListener('click', () => {
+    alert('Yeni ürün ekleme formunu bir sonraki aşamada hazırlayacağız. Bu önizleme henüz veritabanına bağlı değil.');
+  });
+
+  document.querySelectorAll('.nav a').forEach(link => {
+    link.addEventListener('click', () => {
+      document.querySelectorAll('.nav a').forEach(item => item.classList.remove('active'));
+      link.classList.add('active');
+    });
+  });
+</script>
 </body>
 </html>
