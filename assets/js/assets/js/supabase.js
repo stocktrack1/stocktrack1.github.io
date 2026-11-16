@@ -3,7 +3,7 @@ const SUPABASE_URL = "https://uqmlhppynodlacnvowqa.supabase.co";
 
 const SUPABASE_KEY = "sb_publishable_SLrCZA6pzYn5Xy6VZ7JB0w_x2wf4mE4";
 
-const supabase = window.supabase.createClient(
+window.stocktrackSupabase = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_KEY,
     {
@@ -17,7 +17,7 @@ const supabase = window.supabase.createClient(
 
 console.log("StockTrack Supabase bağlantısı hazır.");
 
-supabase.auth.getSession().then(({ data, error }) => {
+window.stocktrackSupabase.auth.getSession().then(({ data, error }) => {
     if (error) {
         console.error("Supabase bağlantı hatası:", error.message);
     } else {
