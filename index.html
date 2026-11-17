@@ -1266,7 +1266,19 @@
       <button class="modal-close" id="closeProductHistory"
               type="button">×</button>
     </div>
+<div class="history-filters">
+  <select id="movementTypeFilter">
+    <option value="">Tüm Hareketler</option>
+    <option value="GIRIS">Stok Girişleri</option>
+    <option value="CIKIS">Stok Çıkışları</option>
+  </select>
 
+  <label>Başlangıç Tarihi</label>
+  <input type="date" id="historyStartDate">
+
+  <label>Bitiş Tarihi</label>
+  <input type="date" id="historyEndDate">
+</div>
     <div id="productHistoryContent">
       Hareketler yükleniyor...
     </div>
@@ -1289,6 +1301,15 @@
 
 const productHistoryContent =
   document.getElementById("productHistoryContent");
+  const movementTypeFilter =
+  document.getElementById("movementTypeFilter");
+
+const historyStartDate =
+  document.getElementById("historyStartDate");
+
+const historyEndDate =
+  document.getElementById("historyEndDate");
+  let currentProductMovements = [];
   async function openProductHistory(productId) {
   productHistoryModal.classList.add("show");
   productHistoryContent.textContent = "Hareketler yükleniyor...";
@@ -1309,41 +1330,76 @@ const productHistoryContent =
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-
+currentProductMovements = data || [];
     if (!data || data.length === 0) {
       productHistoryContent.textContent =
         "Bu ürün için henüz stok hareketi bulunmuyor.";
       return;
     }
 
-    productHistoryContent.innerHTML = `
-      <h3>${escapeHTML(product.product_name)}</h3>
-      ${data.map(movement => {
-        const isEntry = movement.movement_type === "GIRIS";
-        const date = new Date(movement.created_at).toLocaleString("tr-TR");
+    productHistoryContent.innerHTML =
+  `<h3>${escapeHTML(product.product_name)}</h3>`;
 
-        return `
-          <div class="movement">
-            <div>
-              <strong>${isEntry ? "Stok Girişi" : "Stok Çıkışı"}</strong>
-              <small>
-                ${escapeHTML(movement.description || "Açıklama yok")}
-                · ${date}
-              </small>
-            </div>
-            <b style="color:${isEntry ? "#16a36a" : "#df5b62"}">
-              ${isEntry ? "+" : "-"}${Number(movement.quantity)} adet
-            </b>
-          </div>
-        `;
-      }).join("")}
-    `;
+renderProductHistory();
   } catch (error) {
     console.error("Ürün hareket geçmişi hatası:", error);
     productHistoryContent.textContent =
       "Hareket geçmişi yüklenemedi: " + error.message;
   }
-}document.getElementById("closeProductHistory")
+}function renderProductHistory() {
+  const selectedType = movementTypeFilter.value;
+  const startDate = historyStartDate.value;
+  const endDate = historyEndDate.value;
+
+  const filteredMovements = currentProductMovements.filter(movement => {
+    const matchesType =
+      !selectedType || movement.movement_type === selectedType;
+
+    const movementDate = new Date(movement.created_at);
+    const dateString =
+      movementDate.getFullYear() + "-" +
+      String(movementDate.getMonth() + 1).padStart(2, "0") + "-" +
+      String(movementDate.getDate()).padStart(2, "0");
+
+    const matchesStart = !startDate || dateString >= startDate;
+    const matchesEnd = !endDate || dateString <= endDate;
+
+    return matchesType && matchesStart && matchesEnd;
+  });
+
+  if (filteredMovements.length === 0) {
+    productHistoryContent.textContent =
+      "Seçilen filtrelere uygun hareket bulunamadı.";
+    return;
+  }
+
+  productHistoryContent.innerHTML = filteredMovements.map(movement => {
+    const isEntry = movement.movement_type === "GIRIS";
+    const date = new Date(movement.created_at).toLocaleString("tr-TR");
+
+    return `
+      <div class="movement">
+        <div>
+          <strong>${isEntry ? "Stok Girişi" : "Stok Çıkışı"}</strong>
+          <small>
+            ${escapeHTML(movement.description || "Açıklama yok")}
+            · ${date}
+          </small>
+        </div>
+        <b style="color:${isEntry ? "#16a36a" : "#df5b62"}">
+          ${isEntry ? "+" : "-"}${Number(movement.quantity)} adet
+        </b>
+      </div>
+    `;
+  }).join("");
+}
+  movementTypeFilter.addEventListener("change", renderProductHistory);
+
+historyStartDate.addEventListener("change", renderProductHistory);
+
+historyEndDate.addEventListener("change", renderProductHistory);
+  document.getElementById("closeProductHistory")
+    
   .addEventListener("click", () => {
     productHistoryModal.classList.remove("show");
   });
