@@ -990,9 +990,11 @@
   </select>
 </div>
       <div class="table-wrap">
-
+<button class="primary-btn" id="exportExcelBtn" type="button">
+  Excel'e Aktar
+</button>
         <table>
-
+         
           <thead>
             <tr>
               <th>ÜRÜN</th>
@@ -1285,6 +1287,7 @@
   </div>
 </div>
 <!-- STOCKTRACK VERİTABANI İŞLEMLERİ -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
 (() => {
   const client = window.stocktrackSupabase;
@@ -1696,7 +1699,72 @@ data.forEach(category => {
       movementPanel.appendChild(item);
     });
   }
+async function exportToExcel() {
+  try {
+    const { data: products, error: productError } = await client
+      .from("products")
+      .select(`
+        product_name,
+        product_code,
+        purchase_price,
+        sale_price,
+        stock_quantity,
+        min_stock,
+        categories(category_name)
+      `);
 
+    if (productError) throw productError;
+
+    const { data: movements, error: movementError } = await client
+      .from("stock_movements")
+      .select(`
+        movement_type,
+        quantity,
+        description,
+        created_at,
+        products(product_name)
+      `)
+      .order("created_at", { ascending: false });
+
+    if (movementError) throw movementError;
+
+    const workbook = XLSX.utils.book_new();
+
+    const productRows = products.map(product => ({
+      "Ürün Adı": product.product_name,
+      "Ürün Kodu": product.product_code,
+      "Kategori": product.categories?.category_name || "",
+      "Alış Fiyatı": product.purchase_price,
+      "Satış Fiyatı": product.sale_price,
+      "Mevcut Stok": product.stock_quantity,
+      "Minimum Stok": product.min_stock
+    }));
+
+    const movementRows = movements.map(movement => ({
+      "Ürün": movement.products?.product_name || "",
+      "Hareket Türü": movement.movement_type === "GIRIS"
+        ? "Stok Girişi"
+        : "Stok Çıkışı",
+      "Miktar": movement.quantity,
+      "Açıklama": movement.description || "",
+      "Tarih": new Date(movement.created_at).toLocaleString("tr-TR")
+    }));
+
+    const productSheet = XLSX.utils.json_to_sheet(productRows);
+    const movementSheet = XLSX.utils.json_to_sheet(movementRows);
+
+    XLSX.utils.book_append_sheet(workbook, productSheet, "Ürün Listesi");
+    XLSX.utils.book_append_sheet(workbook, movementSheet, "Stok Hareketleri");
+
+    XLSX.writeFile(workbook, "StockTrack_Rapor.xlsx");
+
+  } catch (error) {
+    console.error("Excel raporu oluşturma hatası:", error);
+    alert("Excel raporu oluşturulamadı: " + error.message);
+  }
+}
+  document.getElementById("exportExcelBtn")
+  .addEventListener("click", exportToExcel);
   async function loadDashboard() {
     setMessage("Veritabanı verileri yükleniyor...");
 
