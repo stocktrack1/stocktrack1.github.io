@@ -1258,7 +1258,20 @@
 
 <!-- SUPABASE BAĞLANTI DOSYASI -->
 <script src="assets/js/assets/js/supabase.js"></script>
+<!-- ÜRÜN STOK HAREKET GEÇMİŞİ -->
+<div class="modal" id="productHistoryModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Stok Hareket Geçmişi</h2>
+      <button class="modal-close" id="closeProductHistory"
+              type="button">×</button>
+    </div>
 
+    <div id="productHistoryContent">
+      Hareketler yükleniyor...
+    </div>
+  </div>
+</div>
 <!-- STOCKTRACK VERİTABANI İŞLEMLERİ -->
 <script>
 (() => {
@@ -1271,6 +1284,75 @@
   const loginSubmit = document.getElementById("loginSubmit");
 
   const productRows = document.getElementById("productRows");
+  const productHistoryModal =
+  document.getElementById("productHistoryModal");
+
+const productHistoryContent =
+  document.getElementById("productHistoryContent");
+  async function openProductHistory(productId) {
+  productHistoryModal.classList.add("show");
+  productHistoryContent.textContent = "Hareketler yükleniyor...";
+
+  try {
+    const { data: product, error: productError } = await client
+      .from("products")
+      .select("product_name")
+      .eq("id", productId)
+      .single();
+
+    if (productError) throw productError;
+
+    const { data, error } = await client
+      .from("stock_movements")
+      .select("id, movement_type, quantity, description, created_at")
+      .eq("product_id", productId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      productHistoryContent.textContent =
+        "Bu ürün için henüz stok hareketi bulunmuyor.";
+      return;
+    }
+
+    productHistoryContent.innerHTML = `
+      <h3>${escapeHTML(product.product_name)}</h3>
+      ${data.map(movement => {
+        const isEntry = movement.movement_type === "GIRIS";
+        const date = new Date(movement.created_at).toLocaleString("tr-TR");
+
+        return `
+          <div class="movement">
+            <div>
+              <strong>${isEntry ? "Stok Girişi" : "Stok Çıkışı"}</strong>
+              <small>
+                ${escapeHTML(movement.description || "Açıklama yok")}
+                · ${date}
+              </small>
+            </div>
+            <b style="color:${isEntry ? "#16a36a" : "#df5b62"}">
+              ${isEntry ? "+" : "-"}${Number(movement.quantity)} adet
+            </b>
+          </div>
+        `;
+      }).join("")}
+    `;
+  } catch (error) {
+    console.error("Ürün hareket geçmişi hatası:", error);
+    productHistoryContent.textContent =
+      "Hareket geçmişi yüklenemedi: " + error.message;
+  }
+}document.getElementById("closeProductHistory")
+  .addEventListener("click", () => {
+    productHistoryModal.classList.remove("show");
+  });
+
+productHistoryModal.addEventListener("click", event => {
+  if (event.target === productHistoryModal) {
+    productHistoryModal.classList.remove("show");
+  }
+});
   const categoryList = document.querySelector(".category-list");
   const movementPanel = document.getElementById("movements");
   const searchInput = document.getElementById("searchInput");
@@ -1396,6 +1478,10 @@ row.dataset.stockStatus =
           </span>
         </td>
                 <td>
+                <button class="secondary-btn history-product-btn"
+        data-id="${product.id}" type="button">
+  Hareketler
+</button>
           <button class="secondary-btn edit-product-btn"
                   data-id="${product.id}" type="button">
             Düzenle
@@ -1772,7 +1858,12 @@ editProductModal.addEventListener("click", event => {
 
 productRows.addEventListener("click", event => {
   const editButton = event.target.closest(".edit-product-btn");
+  const historyButton = event.target.closest(".history-product-btn");
 
+  if (historyButton) {
+    openProductHistory(Number(historyButton.dataset.id));
+    return;
+  }
   if (editButton) {
     openEditProduct(Number(editButton.dataset.id));
   }
