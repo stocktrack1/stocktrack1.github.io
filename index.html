@@ -987,6 +987,7 @@
               <th>ALIŞ FİYATI</th>
               <th>SATIŞ FİYATI</th>
               <th>DURUM</th>
+              <th>İŞLEMLER</th>
             </tr>
           </thead>
 
@@ -1130,6 +1131,64 @@
         </button>
       </div>
 
+    </form>
+  </div>
+</div>
+  <!-- ÜRÜN DÜZENLEME PENCERESİ -->
+<div class="modal" id="editProductModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Ürünü Düzenle</h2>
+      <button class="modal-close" id="closeEditProduct" type="button">×</button>
+    </div>
+
+    <form id="editProductForm">
+      <div class="product-form-grid">
+
+        <label class="product-form-field full">
+          Ürün Adı *
+          <input id="editProductName" type="text" maxlength="150" required>
+        </label>
+
+        <label class="product-form-field">
+          Ürün Kodu *
+          <input id="editProductCode" type="text" maxlength="50" required>
+        </label>
+
+        <label class="product-form-field">
+          Kategori *
+          <select id="editProductCategory" required>
+            <option value="">Kategori seçin</option>
+          </select>
+        </label>
+
+        <label class="product-form-field">
+          Alış Fiyatı (₺) *
+          <input id="editPurchasePrice" type="number" min="0" step="0.01" required>
+        </label>
+
+        <label class="product-form-field">
+          Satış Fiyatı (₺) *
+          <input id="editSalePrice" type="number" min="0" step="0.01" required>
+        </label>
+
+        <label class="product-form-field">
+          Minimum Stok *
+          <input id="editMinStock" type="number" min="0" step="1" required>
+        </label>
+
+      </div>
+
+      <p class="form-message" id="editProductMessage"></p>
+
+      <div class="modal-actions">
+        <button class="secondary-btn" id="cancelEditProduct" type="button">
+          İptal
+        </button>
+        <button class="primary-btn" id="saveEditProduct" type="submit">
+          Değişiklikleri Kaydet
+        </button>
+      </div>
     </form>
   </div>
 </div>
@@ -1313,6 +1372,16 @@
           }">
             ${isCritical ? "Kritik Stok" : "Stokta"}
           </span>
+        </td>
+                <td>
+          <button class="secondary-btn edit-product-btn"
+                  data-id="${product.id}" type="button">
+            Düzenle
+          </button>
+          <button class="secondary-btn delete-product-btn"
+                  data-id="${product.id}" type="button">
+            Sil
+          </button>
         </td>
       `;
 
@@ -1596,6 +1665,191 @@ movementForm.addEventListener("submit", async event => {
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = "İşlemi Kaydet";
+  }
+});
+  // ÜRÜN DÜZENLEME İŞLEMLERİ
+const editProductModal = document.getElementById("editProductModal");
+const editProductForm = document.getElementById("editProductForm");
+const editProductMessage = document.getElementById("editProductMessage");
+
+let editingProductId = null;
+
+async function openEditProduct(productId) {
+  editProductMessage.textContent = "";
+  editProductForm.reset();
+  editingProductId = productId;
+
+  try {
+    const { data: product, error } = await client
+      .from("products")
+      .select("id, product_name, product_code, category_id, purchase_price, sale_price, min_stock")
+      .eq("id", productId)
+      .single();
+
+    if (error) throw error;
+
+    const { data: categories, error: categoryError } = await client
+      .from("categories")
+      .select("id, category_name")
+      .order("category_name");
+
+    if (categoryError) throw categoryError;
+
+    const categorySelect = document.getElementById("editProductCategory");
+    categorySelect.innerHTML = '<option value="">Kategori seçin</option>';
+
+    categories.forEach(category => {
+      const option = document.createElement("option");
+      option.value = category.id;
+      option.textContent = category.category_name;
+      categorySelect.appendChild(option);
+    });
+
+    document.getElementById("editProductName").value = product.product_name;
+    document.getElementById("editProductCode").value = product.product_code;
+    categorySelect.value = product.category_id;
+    document.getElementById("editPurchasePrice").value = product.purchase_price;
+    document.getElementById("editSalePrice").value = product.sale_price;
+    document.getElementById("editMinStock").value = product.min_stock;
+
+    editProductModal.classList.add("show");
+
+  } catch (error) {
+    console.error("Ürün bilgileri yüklenemedi:", error);
+    alert("Ürün bilgileri yüklenemedi: " + error.message);
+  }
+}
+
+function closeEditProductModal() {
+  editProductModal.classList.remove("show");
+  editProductForm.reset();
+  editProductMessage.textContent = "";
+  editingProductId = null;
+}
+
+document.getElementById("closeEditProduct")
+  .addEventListener("click", closeEditProductModal);
+
+document.getElementById("cancelEditProduct")
+  .addEventListener("click", closeEditProductModal);
+
+editProductModal.addEventListener("click", event => {
+  if (event.target === editProductModal) {
+    closeEditProductModal();
+  }
+});
+
+productRows.addEventListener("click", event => {
+  const editButton = event.target.closest(".edit-product-btn");
+
+  if (editButton) {
+    openEditProduct(Number(editButton.dataset.id));
+  }
+});
+
+editProductForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const saveButton = document.getElementById("saveEditProduct");
+  saveButton.disabled = true;
+  saveButton.textContent = "Kaydediliyor...";
+  editProductMessage.textContent = "";
+
+  const updatedProduct = {
+    product_name: document.getElementById("editProductName").value.trim(),
+    product_code: document.getElementById("editProductCode").value.trim(),
+    category_id: Number(document.getElementById("editProductCategory").value),
+    purchase_price: Number(document.getElementById("editPurchasePrice").value),
+    sale_price: Number(document.getElementById("editSalePrice").value),
+    min_stock: Number(document.getElementById("editMinStock").value)
+  };
+
+  try {
+    if (
+      !updatedProduct.product_name ||
+      !updatedProduct.product_code ||
+      !updatedProduct.category_id ||
+      !Number.isFinite(updatedProduct.purchase_price) ||
+      !Number.isFinite(updatedProduct.sale_price) ||
+      !Number.isInteger(updatedProduct.min_stock) ||
+      updatedProduct.purchase_price < 0 ||
+      updatedProduct.sale_price < 0 ||
+      updatedProduct.min_stock < 0
+    ) {
+      throw new Error("Lütfen tüm alanları doğru şekilde doldurun.");
+    }
+
+    const { error } = await client
+      .from("products")
+      .update(updatedProduct)
+      .eq("id", editingProductId);
+
+    if (error) throw error;
+
+    closeEditProductModal();
+    await loadDashboard();
+
+    alert("Ürün başarıyla güncellendi.");
+
+  } catch (error) {
+    console.error("Ürün güncelleme hatası:", error);
+    editProductMessage.textContent =
+      "Güncelleme başarısız: " + error.message;
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = "Değişiklikleri Kaydet";
+  }
+});
+  // ÜRÜN SİLME İŞLEMLERİ
+productRows.addEventListener("click", async event => {
+  const deleteButton = event.target.closest(".delete-product-btn");
+
+  if (!deleteButton) return;
+
+  const productId = Number(deleteButton.dataset.id);
+
+  const confirmed = confirm(
+    "Bu ürünü silmek istediğinize emin misiniz?\n\n" +
+    "Stok hareketi geçmişi bulunan ürünler silinemez."
+  );
+
+  if (!confirmed) return;
+
+  deleteButton.disabled = true;
+  deleteButton.textContent = "Kontrol ediliyor...";
+
+  try {
+    const { data: movements, error: movementError } = await client
+      .from("stock_movements")
+      .select("id")
+      .eq("product_id", productId)
+      .limit(1);
+
+    if (movementError) throw movementError;
+
+    if (movements && movements.length > 0) {
+      throw new Error(
+        "Bu ürünün stok hareketi geçmişi var. Geçmiş kayıtları korumak için ürün silinmedi."
+      );
+    }
+
+    const { error } = await client
+      .from("products")
+      .delete()
+      .eq("id", productId);
+
+    if (error) throw error;
+
+    alert("Ürün başarıyla silindi.");
+    await loadDashboard();
+
+  } catch (error) {
+    console.error("Ürün silme hatası:", error);
+    alert("Ürün silinemedi: " + error.message);
+
+  } finally {
+    deleteButton.disabled = false;
+    deleteButton.textContent = "Sil";
   }
 });
 // YENİ ÜRÜN EKLEME İŞLEMLERİ
