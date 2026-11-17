@@ -1133,6 +1133,51 @@
     </form>
   </div>
 </div>
+  <!-- STOK GİRİŞİ / ÇIKIŞI PENCERESİ -->
+<div class="modal" id="movementModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Stok Girişi / Çıkışı</h2>
+      <button class="modal-close" id="closeMovementModal" type="button">×</button>
+    </div>
+
+    <form id="movementForm">
+      <div class="product-form-grid">
+        <label class="product-form-field full">
+          İşlem Türü *
+          <select id="movementType" required>
+            <option value="GIRIS">Stok Girişi (+)</option>
+            <option value="CIKIS">Stok Çıkışı (-)</option>
+          </select>
+        </label>
+
+        <label class="product-form-field full">
+          Ürün *
+          <select id="movementProduct" required>
+            <option value="">Ürün seçin</option>
+          </select>
+        </label>
+
+        <label class="product-form-field full">
+          Miktar *
+          <input id="movementQuantity" type="number" min="1" step="1" required placeholder="Adet girin">
+        </label>
+
+        <label class="product-form-field full">
+          Açıklama
+          <input id="movementDescription" type="text" maxlength="250" placeholder="Örn. Satış / Tedarikçi teslimatı">
+        </label>
+      </div>
+
+      <p class="form-message" id="movementFormMessage" role="alert"></p>
+
+      <div class="modal-actions">
+        <button class="secondary-btn" id="cancelMovement" type="button">İptal</button>
+        <button class="primary-btn" id="saveMovement" type="submit">İşlemi Kaydet</button>
+      </div>
+    </form>
+  </div>
+</div>
 <!-- MEVCUT ARAYÜZ İŞLEMLERİ -->
 
 <!-- SUPABASE KÜTÜPHANESİ -->
@@ -1428,6 +1473,131 @@
       setMessage("Veriler yüklenemedi: " + error.message);
     }
   }
+  // STOK GİRİŞİ / ÇIKIŞI İŞLEMLERİ
+const movementModal = document.getElementById("movementModal");
+const movementForm = document.getElementById("movementForm");
+const movementFormMessage = document.getElementById("movementFormMessage");
+const movementProductSelect = document.getElementById("movementProduct");
+
+async function openMovementModal() {
+  movementForm.reset();
+  movementFormMessage.textContent = "";
+  movementProductSelect.innerHTML = '<option value="">Ürünler yükleniyor...</option>';
+  movementModal.classList.add("show");
+
+  try {
+    const { data, error } = await client
+      .from("products")
+      .select("id, product_name, product_code, stock_quantity")
+      .order("product_name");
+
+    if (error) throw error;
+
+    movementProductSelect.innerHTML = '<option value="">Ürün seçin</option>';
+
+    data.forEach(product => {
+      const option = document.createElement("option");
+      option.value = product.id;
+      option.textContent =
+        product.product_name + " (" + product.product_code +
+        ") — Mevcut stok: " + Number(product.stock_quantity || 0);
+
+      movementProductSelect.appendChild(option);
+    });
+
+    if (data.length === 0) {
+      movementProductSelect.innerHTML = '<option value="">Önce ürün ekleyin</option>';
+    }
+  } catch (error) {
+    movementProductSelect.innerHTML = '<option value="">Ürünler yüklenemedi</option>';
+    movementFormMessage.textContent = "Ürünler yüklenemedi: " + error.message;
+  }
+}
+
+function closeMovementModal() {
+  movementModal.classList.remove("show");
+  movementForm.reset();
+  movementFormMessage.textContent = "";
+}
+
+document.getElementById("openMovementModal")
+  .addEventListener("click", openMovementModal);
+
+document.getElementById("closeMovementModal")
+  .addEventListener("click", closeMovementModal);
+
+document.getElementById("cancelMovement")
+  .addEventListener("click", closeMovementModal);
+
+movementModal.addEventListener("click", event => {
+  if (event.target === movementModal) closeMovementModal();
+});
+
+movementForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const saveButton = document.getElementById("saveMovement");
+  const movementType = document.getElementById("movementType").value;
+  const productId = Number(movementProductSelect.value);
+  const quantity = Number(document.getElementById("movementQuantity").value);
+  const description = document.getElementById("movementDescription").value.trim();
+
+  movementFormMessage.textContent = "";
+
+  if (!productId || !Number.isInteger(quantity) || quantity <= 0) {
+    movementFormMessage.textContent = "Lütfen ürün seçin ve geçerli bir miktar girin.";
+    return;
+  }
+
+  saveButton.disabled = true;
+  saveButton.textContent = "Kaydediliyor...";
+
+  try {
+    if (movementType === "CIKIS") {
+      const { data: product, error: productError } = await client
+        .from("products")
+        .select("stock_quantity")
+        .eq("id", productId)
+        .single();
+
+      if (productError) throw productError;
+
+      if (Number(product.stock_quantity || 0) < quantity) {
+        throw new Error(
+          "Yetersiz stok. Mevcut stok: " +
+          Number(product.stock_quantity || 0) + " adet."
+        );
+      }
+    }
+
+    const { error } = await client.rpc("update_stock", {
+      p_product_id: productId,
+      p_movement_type: movementType,
+      p_quantity: quantity,
+      p_description: description ||
+        (movementType === "GIRIS"
+          ? "Manuel stok girişi"
+          : "Manuel stok çıkışı")
+    });
+
+    if (error) throw error;
+
+    closeMovementModal();
+    await loadDashboard();
+
+    alert(movementType === "GIRIS"
+      ? "Stok girişi başarıyla kaydedildi."
+      : "Stok çıkışı başarıyla kaydedildi.");
+
+  } catch (error) {
+    console.error("Stok hareketi kaydetme hatası:", error);
+    movementFormMessage.textContent =
+      "İşlem kaydedilemedi: " + error.message;
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = "İşlemi Kaydet";
+  }
+});
 // YENİ ÜRÜN EKLEME İŞLEMLERİ
 
 const productModal = document.getElementById("productModal");
