@@ -2036,6 +2036,9 @@ async function deleteCustomer(id) {
   await loadCustomers();
   alert("Müşteri başarıyla silindi.");
 }
+  // MÜŞTERİ İŞLEMLERİNİ HTML BUTONLARINA AÇ
+window.editCustomer = editCustomer;
+window.deleteCustomer = deleteCustomer;
   // YENİ MÜŞTERİYİ VERİTABANINA KAYDET
 customerForm.addEventListener("submit", async event => {
   event.preventDefault();
