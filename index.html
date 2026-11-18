@@ -2096,6 +2096,52 @@ document.getElementById("addSaleItem")
 
     renderSaleCart();
   });
+  // SATIŞ SEPETİNİ EKRANA YAZDIR
+function renderSaleCart() {
+  const rows = document.getElementById("saleCartRows");
+  const totalElement = document.getElementById("saleGrandTotal");
+  const completeButton = document.getElementById("completeSale");
+
+  if (saleCart.length === 0) {
+    rows.innerHTML = `
+      <tr><td colspan="5" class="empty">Sepet henüz boş.</td></tr>
+    `;
+    totalElement.textContent = "0,00 ₺";
+    completeButton.disabled = true;
+    return;
+  }
+
+  let grandTotal = 0;
+
+  rows.innerHTML = saleCart.map((item, index) => {
+    const total = item.quantity * item.price;
+    grandTotal += total;
+
+    return `
+      <tr>
+        <td>${escapeHTML(item.name)}</td>
+        <td>${item.quantity}</td>
+        <td>${money(item.price)}</td>
+        <td>${money(total)}</td>
+        <td>
+          <button class="danger-btn" type="button"
+            onclick="removeSaleItem(${index})">
+            Sil
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  totalElement.textContent = money(grandTotal);
+  completeButton.disabled = false;
+}
+  // SEPETTEN ÜRÜN SİL
+function removeSaleItem(index) {
+  saleCart.splice(index, 1);
+  renderSaleCart();
+}
+  window.removeSaleItem = removeSaleItem;
 // ANA VERİLERİ YÜKLE
 async function loadDashboard() {
   setMessage("Veritabanı verileri yükleniyor...");
