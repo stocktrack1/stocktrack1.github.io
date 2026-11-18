@@ -1081,6 +1081,12 @@
 
   <div class="table-header">
     <h2>Müşteri Listesi</h2>
+    <input
+  type="text"
+  id="customerSearch"
+  placeholder="Müşteri adı veya telefon ara..."
+  style="max-width:300px; margin:10px 0;"
+>
     <button class="primary-btn" id="addCustomerBtn" type="button">
       ＋ Yeni Müşteri Ekle
     </button>
@@ -1946,6 +1952,17 @@ async function loadCustomers() {
     `;
   }
 }
+  // MÜŞTERİ ARAMA
+document.getElementById("customerSearch")
+  .addEventListener("input", function () {
+    const searchText = this.value.toLocaleLowerCase("tr-TR");
+    const rows = document.querySelectorAll("#customerRows tr");
+
+    rows.forEach(row => {
+      const rowText = row.textContent.toLocaleLowerCase("tr-TR");
+      row.style.display = rowText.includes(searchText) ? "" : "none";
+    });
+  });
   // YENİ MÜŞTERİYİ VERİTABANINA KAYDET
 customerForm.addEventListener("submit", async event => {
   event.preventDefault();
