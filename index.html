@@ -2004,19 +2004,7 @@ async function exportToExcel() {
 }
   document.getElementById("exportExcelBtn")
   .addEventListener("click", exportToExcel);
-  async function loadDashboard() {
-    setMessage("Veritabanı verileri yükleniyor...");
-
-    try {
- await Promise.all([
-  loadProducts(),
-  loadCategories(),
-  loadMovements(),
-  loadCustomers(),
-  loadSaleCustomers(),
-  loadSaleProducts()
-]);
-   // SATIŞ EKRANINA ÜRÜNLERİ YÜKLE
+  // SATIŞ EKRANINA ÜRÜNLERİ YÜKLE
 async function loadSaleProducts() {
   const saleProduct = document.getElementById("saleProduct");
 
@@ -2025,10 +2013,7 @@ async function loadSaleProducts() {
     .select("id, product_name, sale_price, purchase_price, stock_quantity")
     .order("product_name");
 
-  if (error) {
-    console.error("Satış ürünleri yüklenemedi:", error.message);
-    return;
-  }
+  if (error) throw error;
 
   saleProduct.innerHTML = '<option value="">Ürün seçin</option>';
 
@@ -2045,16 +2030,29 @@ async function loadSaleProducts() {
     `;
   });
 }
-]);
 
-      const message = document.getElementById("dataMessage");
-      if (message) message.remove();
+// ANA VERİLERİ YÜKLE
+async function loadDashboard() {
+  setMessage("Veritabanı verileri yükleniyor...");
 
-    } catch (error) {
-      console.error("Veri yükleme hatası:", error);
-      setMessage("Veriler yüklenemedi: " + error.message);
-    }
+  try {
+    await Promise.all([
+      loadProducts(),
+      loadCategories(),
+      loadMovements(),
+      loadCustomers(),
+      loadSaleCustomers(),
+      loadSaleProducts()
+    ]);
+
+    const message = document.getElementById("dataMessage");
+    if (message) message.remove();
+
+  } catch (error) {
+    console.error("Veri yükleme hatası:", error);
+    setMessage("Veriler yüklenemedi: " + error.message);
   }
+}
   // MÜŞTERİ PENCERESİ AÇMA / KAPATMA
 const customerModal = document.getElementById("customerModal");
 const customerForm = document.getElementById("customerForm");
