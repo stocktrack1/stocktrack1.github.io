@@ -784,6 +784,10 @@
         <span class="nav-icon">↔</span>
         <span class="nav-text">Stok Hareketleri</span>
       </a>
+      <a href="#customers">
+  <span class="nav-icon">♙</span>
+  <span class="nav-text">Müşteriler</span>
+</a>
     </nav>
 
     <div class="sidebar-bottom">
@@ -1072,7 +1076,36 @@
       </div>
 
     </section>
+<!-- MÜŞTERİ YÖNETİMİ -->
+<section class="panel table-panel" id="customers" style="margin-top:18px">
 
+  <div class="table-header">
+    <h2>Müşteri Listesi</h2>
+    <button class="primary-btn" id="addCustomerBtn" type="button">
+      ＋ Yeni Müşteri Ekle
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>MÜŞTERİ ADI</th>
+          <th>TELEFON</th>
+          <th>E-POSTA</th>
+          <th>ADRES</th>
+        </tr>
+      </thead>
+
+      <tbody id="customerRows">
+        <tr>
+          <td colspan="4" class="empty">Müşteriler yükleniyor...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</section>
   </main>
 </div>
 <!-- YENİ ÜRÜN EKLEME PENCERESİ -->
@@ -1250,6 +1283,64 @@
         <button class="secondary-btn" id="cancelMovement" type="button">İptal</button>
         <button class="primary-btn" id="saveMovement" type="submit">İşlemi Kaydet</button>
       </div>
+    </form>
+  </div>
+</div>
+  <!-- YENİ MÜŞTERİ EKLEME PENCERESİ -->
+<div class="modal" id="customerModal">
+  <div class="modal-card">
+
+    <div class="modal-header">
+      <h2>Yeni Müşteri Ekle</h2>
+      <button class="modal-close" id="closeCustomerModal" type="button">×</button>
+    </div>
+
+    <form id="customerForm">
+
+      <div class="product-form-grid">
+
+        <label class="product-form-field full">
+          Müşteri Adı *
+          <input id="newCustomerName" type="text"
+                 maxlength="150" required
+                 placeholder="Müşteri adını girin">
+        </label>
+
+        <label class="product-form-field full">
+          Telefon
+          <input id="newCustomerPhone" type="tel"
+                 maxlength="30"
+                 placeholder="05XX XXX XX XX">
+        </label>
+
+        <label class="product-form-field full">
+          E-posta
+          <input id="newCustomerEmail" type="email"
+                 maxlength="150"
+                 placeholder="ornek@mail.com">
+        </label>
+
+        <label class="product-form-field full">
+          Adres
+          <textarea id="newCustomerAddress"
+                    maxlength="500"
+                    placeholder="Müşteri adresi"></textarea>
+        </label>
+
+      </div>
+
+      <p class="form-message" id="customerFormMessage"></p>
+
+      <div class="modal-actions">
+        <button class="secondary-btn" id="cancelCustomer" type="button">
+          İptal
+        </button>
+
+        <button class="primary-btn" id="saveCustomer" type="submit">
+          Müşteriyi Kaydet
+        </button>
+      </div>
+
     </form>
   </div>
 </div>
@@ -1783,6 +1874,36 @@ async function exportToExcel() {
       setMessage("Veriler yüklenemedi: " + error.message);
     }
   }
+  // MÜŞTERİ PENCERESİ AÇMA / KAPATMA
+const customerModal = document.getElementById("customerModal");
+const customerForm = document.getElementById("customerForm");
+
+function openCustomerModal() {
+  customerForm.reset();
+  document.getElementById("customerFormMessage").textContent = "";
+  customerModal.classList.add("show");
+}
+
+function closeCustomerModal() {
+  customerModal.classList.remove("show");
+  customerForm.reset();
+  document.getElementById("customerFormMessage").textContent = "";
+}
+
+document.getElementById("addCustomerBtn")
+  .addEventListener("click", openCustomerModal);
+
+document.getElementById("closeCustomerModal")
+  .addEventListener("click", closeCustomerModal);
+
+document.getElementById("cancelCustomer")
+  .addEventListener("click", closeCustomerModal);
+
+customerModal.addEventListener("click", event => {
+  if (event.target === customerModal) {
+    closeCustomerModal();
+  }
+});
   // STOK GİRİŞİ / ÇIKIŞI İŞLEMLERİ
 const movementModal = document.getElementById("movementModal");
 const movementForm = document.getElementById("movementForm");
