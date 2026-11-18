@@ -2030,7 +2030,72 @@ async function loadSaleProducts() {
     `;
   });
 }
+  // ÜRÜN SEÇİLİNCE SATIŞ FİYATINI GETİR
+document.getElementById("saleProduct")
+  .addEventListener("change", function () {
+    const selectedOption = this.options[this.selectedIndex];
 
+    const price = selectedOption.dataset.price || "";
+
+    document.getElementById("salePrice").value = price;
+  });
+// SATIŞ SEPETİ
+let saleCart = [];
+  // SEPETE ÜRÜN EKLE
+document.getElementById("addSaleItem")
+  .addEventListener("click", function () {
+
+    const productSelect = document.getElementById("saleProduct");
+    const selectedOption = productSelect.options[productSelect.selectedIndex];
+
+    if (!productSelect.value) {
+      alert("Lütfen ürün seçin.");
+      return;
+    }
+
+    const quantity = Number(document.getElementById("saleQuantity").value);
+    const price = Number(document.getElementById("salePrice").value);
+    const stock = Number(selectedOption.dataset.stock);
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      alert("Geçerli bir adet girin.");
+      return;
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+      alert("Geçerli bir satış fiyatı girin.");
+      return;
+    }
+
+    if (quantity > stock) {
+      alert("Yeterli stok bulunmuyor. Mevcut stok: " + stock);
+      return;
+    }
+
+    const product = {
+      id: Number(productSelect.value),
+      name: selectedOption.textContent.trim(),
+      quantity: quantity,
+      price: price,
+      purchasePrice: Number(selectedOption.dataset.purchase),
+      stock: stock
+    };
+
+    const existingItem = saleCart.find(item => item.id === product.id);
+
+    if (existingItem) {
+      if (existingItem.quantity + quantity > stock) {
+        alert("Sepetteki toplam miktar mevcut stoğu aşıyor.");
+        return;
+      }
+
+      existingItem.quantity += quantity;
+    } else {
+      saleCart.push(product);
+    }
+
+    renderSaleCart();
+  });
 // ANA VERİLERİ YÜKLE
 async function loadDashboard() {
   setMessage("Veritabanı verileri yükleniyor...");
