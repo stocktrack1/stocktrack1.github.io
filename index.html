@@ -1861,10 +1861,11 @@ async function exportToExcel() {
 
     try {
       await Promise.all([
-        loadProducts(),
-        loadCategories(),
-        loadMovements()
-      ]);
+  loadProducts(),
+  loadCategories(),
+  loadMovements(),
+  loadCustomers()
+]);
 
       const message = document.getElementById("dataMessage");
       if (message) message.remove();
@@ -1902,6 +1903,89 @@ document.getElementById("cancelCustomer")
 customerModal.addEventListener("click", event => {
   if (event.target === customerModal) {
     closeCustomerModal();
+  }
+});
+  // MÜŞTERİLERİ VERİTABANINDAN YÜKLE
+const customerRows = document.getElementById("customerRows");
+
+async function loadCustomers() {
+  customerRows.innerHTML = `
+    <tr><td colspan="4" class="empty">Müşteriler yükleniyor...</td></tr>
+  `;
+
+  try {
+    const { data, error } = await client
+      .from("customers")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      customerRows.innerHTML = `
+        <tr><td colspan="4" class="empty">Henüz müşteri eklenmemiş.</td></tr>
+      `;
+      return;
+    }
+
+    customerRows.innerHTML = data.map(customer => `
+      <tr>
+        <td>${escapeHTML(customer.customer_name)}</td>
+        <td>${escapeHTML(customer.phone || "-")}</td>
+        <td>${escapeHTML(customer.email || "-")}</td>
+        <td>${escapeHTML(customer.address || "-")}</td>
+      </tr>
+    `).join("");
+
+  } catch (error) {
+    console.error("Müşteriler yüklenemedi:", error);
+    customerRows.innerHTML = `
+      <tr><td colspan="4" class="empty">
+        Müşteriler yüklenemedi: ${escapeHTML(error.message)}
+      </td></tr>
+    `;
+  }
+}
+  // YENİ MÜŞTERİYİ VERİTABANINA KAYDET
+customerForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const saveButton = document.getElementById("saveCustomer");
+  const message = document.getElementById("customerFormMessage");
+
+  const customer = {
+    customer_name: document.getElementById("newCustomerName").value.trim(),
+    phone: document.getElementById("newCustomerPhone").value.trim() || null,
+    email: document.getElementById("newCustomerEmail").value.trim() || null,
+    address: document.getElementById("newCustomerAddress").value.trim() || null
+  };
+
+  if (!customer.customer_name) {
+    message.textContent = "Müşteri adı zorunludur.";
+    return;
+  }
+
+  saveButton.disabled = true;
+  message.textContent = "Müşteri kaydediliyor...";
+
+  try {
+    const { error } = await client
+      .from("customers")
+      .insert([customer]);
+
+    if (error) throw error;
+
+    await loadCustomers();
+    closeCustomerModal();
+
+    alert("Müşteri başarıyla kaydedildi.");
+
+  } catch (error) {
+    console.error("Müşteri kayıt hatası:", error);
+    message.textContent = "Hata: " + error.message;
+
+  } finally {
+    saveButton.disabled = false;
   }
 });
   // STOK GİRİŞİ / ÇIKIŞI İŞLEMLERİ
