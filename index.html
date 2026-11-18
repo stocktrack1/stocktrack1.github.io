@@ -788,6 +788,10 @@
   <span class="nav-icon">♙</span>
   <span class="nav-text">Müşteriler</span>
 </a>
+      <a href="#sales">
+  <span class="nav-icon">🛒</span>
+  <span class="nav-text">Satışlar</span>
+</a>
     </nav>
 
     <div class="sidebar-bottom">
@@ -1076,6 +1080,93 @@
       </div>
 
     </section>
+    <!-- SATIŞ YÖNETİMİ -->
+<section class="panel table-panel" id="sales" style="margin-top:18px">
+
+  <div class="table-header">
+    <h2>Yeni Satış</h2>
+  </div>
+
+  <div class="product-form-grid">
+
+    <label class="product-form-field">
+      Satış Türü
+      <select id="saleType">
+        <option value="PERAKENDE">Perakende</option>
+        <option value="TOPTAN">Toptan</option>
+      </select>
+    </label>
+
+    <label class="product-form-field">
+      Müşteri
+      <select id="saleCustomer">
+        <option value="">Müşteri seçin</option>
+      </select>
+    </label>
+
+    <label class="product-form-field">
+      Ödeme Yöntemi
+      <select id="paymentMethod">
+        <option value="NAKIT">Nakit</option>
+        <option value="KART">Kart</option>
+        <option value="HAVALE">Havale</option>
+      </select>
+    </label>
+
+    <label class="product-form-field">
+      Ürün
+      <select id="saleProduct">
+        <option value="">Ürün seçin</option>
+      </select>
+    </label>
+
+    <label class="product-form-field">
+      Adet
+      <input id="saleQuantity" type="number" min="1" value="1">
+    </label>
+
+    <label class="product-form-field">
+      Satış Fiyatı (₺)
+      <input id="salePrice" type="number" min="0" step="0.01">
+    </label>
+
+  </div>
+
+  <div style="margin-top:15px">
+    <button class="primary-btn" id="addSaleItem" type="button">
+      ＋ Sepete Ekle
+    </button>
+  </div>
+
+  <h3 style="margin-top:25px">Satış Sepeti</h3>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ÜRÜN</th>
+          <th>ADET</th>
+          <th>BİRİM FİYAT</th>
+          <th>TOPLAM</th>
+          <th>İŞLEM</th>
+        </tr>
+      </thead>
+      <tbody id="saleCartRows">
+        <tr>
+          <td colspan="5" class="empty">Sepet henüz boş.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:20px; text-align:right">
+    <h3>Genel Toplam: <span id="saleGrandTotal">0,00 ₺</span></h3>
+    <button class="primary-btn" id="completeSale" type="button" disabled>
+      Satışı Tamamla
+    </button>
+  </div>
+
+</section>
 <!-- MÜŞTERİ YÖNETİMİ -->
 <section class="panel table-panel" id="customers" style="margin-top:18px">
 
@@ -1917,11 +2008,43 @@ async function exportToExcel() {
     setMessage("Veritabanı verileri yükleniyor...");
 
     try {
-      await Promise.all([
+ await Promise.all([
   loadProducts(),
   loadCategories(),
   loadMovements(),
-  loadCustomers()
+  loadCustomers(),
+  loadSaleCustomers(),
+  loadSaleProducts()
+]);
+   // SATIŞ EKRANINA ÜRÜNLERİ YÜKLE
+async function loadSaleProducts() {
+  const saleProduct = document.getElementById("saleProduct");
+
+  const { data, error } = await client
+    .from("products")
+    .select("id, product_name, sale_price, purchase_price, stock_quantity")
+    .order("product_name");
+
+  if (error) {
+    console.error("Satış ürünleri yüklenemedi:", error.message);
+    return;
+  }
+
+  saleProduct.innerHTML = '<option value="">Ürün seçin</option>';
+
+  data.forEach(product => {
+    saleProduct.innerHTML += `
+      <option
+        value="${product.id}"
+        data-price="${product.sale_price}"
+        data-purchase="${product.purchase_price}"
+        data-stock="${product.stock_quantity}"
+      >
+        ${escapeHTML(product.product_name)} (${product.stock_quantity} adet)
+      </option>
+    `;
+  });
+}
 ]);
 
       const message = document.getElementById("dataMessage");
@@ -2006,6 +2129,30 @@ async function loadCustomers() {
       </td></tr>
     `;
   }
+}
+  // SATIŞ EKRANINA MÜŞTERİLERİ YÜKLE
+async function loadSaleCustomers() {
+  const saleCustomer = document.getElementById("saleCustomer");
+
+  const { data, error } = await client
+    .from("customers")
+    .select("id, customer_name")
+    .order("customer_name");
+
+  if (error) {
+    console.error("Satış müşterileri yüklenemedi:", error.message);
+    return;
+  }
+
+  saleCustomer.innerHTML = '<option value="">Müşteri seçin</option>';
+
+  data.forEach(customer => {
+    saleCustomer.innerHTML += `
+      <option value="${customer.id}">
+        ${escapeHTML(customer.customer_name)}
+      </option>
+    `;
+  });
 }
   // MÜŞTERİ ARAMA
 document.getElementById("customerSearch")
