@@ -1160,6 +1160,16 @@
   </div>
 
   <div style="margin-top:20px; text-align:right">
+    <label class="product-form-field" style="max-width:250px; margin-left:auto">
+  İndirim Tutarı (₺)
+  <input
+    id="saleDiscount"
+    type="number"
+    min="0"
+    step="0.01"
+    value="0"
+  >
+</label>
     <h3>Genel Toplam: <span id="saleGrandTotal">0,00 ₺</span></h3>
     <button class="primary-btn" id="completeSale" type="button" disabled>
       Satışı Tamamla
@@ -2133,9 +2143,17 @@ function renderSaleCart() {
     `;
   }).join("");
 
-  totalElement.textContent = money(grandTotal);
+  const discount = Number(document.getElementById("saleDiscount").value) || 0;
+const finalTotal = Math.max(0, grandTotal - discount);
+
+totalElement.textContent = money(finalTotal);
   completeButton.disabled = false;
 }
+  // İNDİRİM DEĞİŞİNCE TOPLAMI GÜNCELLE
+document.getElementById("saleDiscount")
+  .addEventListener("input", function () {
+    renderSaleCart();
+  });
   // SEPETTEN ÜRÜN SİL
 function removeSaleItem(index) {
   saleCart.splice(index, 1);
