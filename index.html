@@ -1100,12 +1100,13 @@
           <th>TELEFON</th>
           <th>E-POSTA</th>
           <th>ADRES</th>
+          <th>İŞLEMLER</th>
         </tr>
       </thead>
 
       <tbody id="customerRows">
         <tr>
-          <td colspan="4" class="empty">Müşteriler yükleniyor...</td>
+          <td colspan="5" class="empty">Müşteriler yükleniyor...</td>
         </tr>
       </tbody>
     </table>
@@ -1916,7 +1917,7 @@ const customerRows = document.getElementById("customerRows");
 
 async function loadCustomers() {
   customerRows.innerHTML = `
-    <tr><td colspan="4" class="empty">Müşteriler yükleniyor...</td></tr>
+    <tr><td colspan="5" class="empty">Müşteriler yükleniyor...</td></tr>
   `;
 
   try {
@@ -1929,7 +1930,7 @@ async function loadCustomers() {
 
     if (!data || data.length === 0) {
       customerRows.innerHTML = `
-        <tr><td colspan="4" class="empty">Henüz müşteri eklenmemiş.</td></tr>
+        <tr><td colspan="5" class="empty">Henüz müşteri eklenmemiş.</td></tr>
       `;
       return;
     }
@@ -1940,13 +1941,17 @@ async function loadCustomers() {
         <td>${escapeHTML(customer.phone || "-")}</td>
         <td>${escapeHTML(customer.email || "-")}</td>
         <td>${escapeHTML(customer.address || "-")}</td>
+        <td>
+  <button class="secondary-btn" onclick="editCustomer(${customer.id})">Düzenle</button>
+  <button class="danger-btn" onclick="deleteCustomer(${customer.id})">Sil</button>
+</td>
       </tr>
     `).join("");
 
   } catch (error) {
     console.error("Müşteriler yüklenemedi:", error);
     customerRows.innerHTML = `
-      <tr><td colspan="4" class="empty">
+      <tr><td colspan="5" class="empty">
         Müşteriler yüklenemedi: ${escapeHTML(error.message)}
       </td></tr>
     `;
@@ -1963,6 +1968,74 @@ document.getElementById("customerSearch")
       row.style.display = rowText.includes(searchText) ? "" : "none";
     });
   });
+  // MÜŞTERİ DÜZENLEME
+async function editCustomer(id) {
+  const { data, error } = await client
+    .from("customers")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    alert("Müşteri bilgileri alınamadı: " + error.message);
+    return;
+  }
+
+  const newName = prompt("Müşteri adı:", data.customer_name);
+  if (newName === null) return;
+
+  const newPhone = prompt("Telefon:", data.phone || "");
+  if (newPhone === null) return;
+
+  const newEmail = prompt("E-posta:", data.email || "");
+  if (newEmail === null) return;
+
+  const newAddress = prompt("Adres:", data.address || "");
+  if (newAddress === null) return;
+
+  if (!newName.trim()) {
+    alert("Müşteri adı boş bırakılamaz.");
+    return;
+  }
+
+  const { error: updateError } = await client
+    .from("customers")
+    .update({
+      customer_name: newName.trim(),
+      phone: newPhone.trim() || null,
+      email: newEmail.trim() || null,
+      address: newAddress.trim() || null
+    })
+    .eq("id", id);
+
+  if (updateError) {
+    alert("Müşteri güncellenemedi: " + updateError.message);
+    return;
+  }
+
+  await loadCustomers();
+  alert("Müşteri başarıyla güncellendi.");
+}
+
+
+// MÜŞTERİ SİLME
+async function deleteCustomer(id) {
+  const confirmed = confirm("Bu müşteriyi silmek istediğinize emin misiniz?");
+  if (!confirmed) return;
+
+  const { error } = await client
+    .from("customers")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert("Müşteri silinemedi: " + error.message);
+    return;
+  }
+
+  await loadCustomers();
+  alert("Müşteri başarıyla silindi.");
+}
   // YENİ MÜŞTERİYİ VERİTABANINA KAYDET
 customerForm.addEventListener("submit", async event => {
   event.preventDefault();
