@@ -2174,6 +2174,8 @@ document.getElementById("completeSale").addEventListener("click", async function
   button.textContent = "Kaydediliyor...";
 
   try {
+    const { data: authData } = await client.auth.getSession();
+console.log("Supabase oturumu:", authData.session);
     const { data, error } = await client.rpc("complete_sale", {
       p_customer_id: document.getElementById("saleCustomer").value
         ? Number(document.getElementById("saleCustomer").value)
