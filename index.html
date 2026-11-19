@@ -1177,6 +1177,39 @@
   </div>
 
 </section>
+    
+<!-- SATIŞ GEÇMİŞİ -->
+<section class="panel table-panel" id="salesHistory" style="margin-top:18px">
+
+  <div class="table-header">
+    <h2>Satış Geçmişi</h2>
+    <button class="primary-btn" id="refreshSalesHistory" type="button">
+      Yenile
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>SATIŞ NO</th>
+          <th>TARİH</th>
+          <th>MÜŞTERİ</th>
+          <th>SATIŞ TÜRÜ</th>
+          <th>ÖDEME</th>
+          <th>TOPLAM</th>
+        </tr>
+      </thead>
+      <tbody id="salesHistoryRows">
+        <tr>
+          <td colspan="6" class="empty">Satış geçmişi yükleniyor...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</section>
+
 <!-- MÜŞTERİ YÖNETİMİ -->
 <section class="panel table-panel" id="customers" style="margin-top:18px">
 
@@ -2160,7 +2193,60 @@ function removeSaleItem(index) {
   renderSaleCart();
 }
   window.removeSaleItem = removeSaleItem;
+  document.getElementById("refreshSalesHistory")
+  .addEventListener("click", loadSalesHistory);
   
+// SATIŞ GEÇMİŞİNİ YÜKLE
+async function loadSalesHistory() {
+  const rows = document.getElementById("salesHistoryRows");
+
+  rows.innerHTML = `
+    <tr><td colspan="6" class="empty">Satışlar yükleniyor...</td></tr>
+  `;
+
+  try {
+    const { data, error } = await client
+      .from("sales")
+      .select("id, customer_id, sale_type, payment_method, total_amount, created_at, customers(*)")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      rows.innerHTML = `
+        <tr><td colspan="6" class="empty">Henüz satış kaydı bulunmuyor.</td></tr>
+      `;
+      return;
+    }
+
+    rows.innerHTML = data.map(sale => {
+      const customer = sale.customers;
+      const customerName = customer
+        ? customer.customer_name || customer.name || customer.full_name || "Müşteri"
+        : "Perakende müşteri";
+
+      return `
+        <tr>
+          <td>#${sale.id}</td>
+          <td>${new Date(sale.created_at).toLocaleString("tr-TR")}</td>
+          <td>${escapeHTML(customerName)}</td>
+          <td>${sale.sale_type === "TOPTAN" ? "Toptan" : "Perakende"}</td>
+          <td>${sale.payment_method}</td>
+          <td><strong>${money(sale.total_amount)}</strong></td>
+        </tr>
+      `;
+    }).join("");
+
+  } catch (error) {
+    console.error("Satış geçmişi hatası:", error);
+    rows.innerHTML = `
+      <tr><td colspan="6" class="empty">
+        Satış geçmişi yüklenemedi: ${escapeHTML(error.message)}
+      </td></tr>
+    `;
+  }
+}
+
 // SATIŞI TAMAMLA VE VERİTABANINA KAYDET
 document.getElementById("completeSale").addEventListener("click", async function () {
   const button = this;
@@ -2229,6 +2315,7 @@ async function loadDashboard() {
       loadCustomers(),
       loadSaleCustomers(),
       loadSaleProducts()
+      loadSalesHistory()
     ]);
 
     const message = document.getElementById("dataMessage");
