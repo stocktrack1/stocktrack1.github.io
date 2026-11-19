@@ -2160,6 +2160,53 @@ function removeSaleItem(index) {
   renderSaleCart();
 }
   window.removeSaleItem = removeSaleItem;
+  
+// SATIŞI TAMAMLA VE VERİTABANINA KAYDET
+document.getElementById("completeSale").addEventListener("click", async function () {
+  const button = this;
+
+  if (saleCart.length === 0) {
+    alert("Sepet boş!");
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Kaydediliyor...";
+
+  try {
+    const { data, error } = await client.rpc("complete_sale", {
+      p_customer_id: document.getElementById("saleCustomer").value
+        ? Number(document.getElementById("saleCustomer").value)
+        : null,
+      p_sale_type: document.getElementById("saleType").value,
+      p_payment_method: document.getElementById("paymentMethod").value,
+      p_discount: Number(document.getElementById("saleDiscount").value) || 0,
+      p_items: saleCart.map(item => ({
+        id: item.id,
+        quantity: item.quantity,
+        price: item.price
+      }))
+    });
+
+    if (error) throw error;
+
+    saleCart = [];
+    document.getElementById("saleDiscount").value = 0;
+
+    renderSaleCart();
+    await loadDashboard();
+
+    alert("Satış başarıyla kaydedildi! Satış No: " + data);
+
+  } catch (error) {
+    console.error("Satış kayıt hatası:", error);
+    alert("Satış kaydedilemedi: " + error.message);
+  } finally {
+    button.textContent = "Satışı Tamamla";
+    button.disabled = saleCart.length === 0;
+  }
+});
+
 // ANA VERİLERİ YÜKLE
 async function loadDashboard() {
   setMessage("Veritabanı verileri yükleniyor...");
